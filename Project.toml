@@ -4,6 +4,7 @@ authors = ["Frank Hellmann <hellmann@pik-potsdam.de>, Michael Lindner <michaelli
 version = "0.5.5"
 
 [deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 LightGraphs = "093fc24a-ae57-5d10-9952-331d41423f4d"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
