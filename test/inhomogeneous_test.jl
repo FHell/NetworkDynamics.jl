@@ -46,3 +46,41 @@ sol_st_ver = solve(prob_st_ver, Rodas4())
 
 println("These dynamics should flow to π, at t=500. they are there up to $(maximum(abs.(sol_st_ver(500.) .- pi)))")
 @test maximum(abs.(sol_st_ver(500.) .- pi)) < 10^-7
+
+
+dx = similar(x0)
+e = [[ones(N)],[ones(N)]]
+foo! = diff_network_st_ver.f
+foo!(dx, x0, nothing, 0.)
+@test (@allocated foo!(dx, x0, nothing, 0.)) == 0
+
+
+### Inspect unrolled loop
+using Unrolled
+d = prob_st_ver.f.f
+@code_unrolled nd_ODE_Static_mod.vertex_loop!(x0, nothing, 0,
+    d.graph_data, d.graph_structure,
+    d.unique_vertices!, d.unique_v_indices, d.parallel)
+
+        # Code
+        # begin
+        #     #= /home/micha/git/NetworkDynamics.jl/src/nd_ODE_Static.jl:39 =#
+        #     #= /home/micha/git/NetworkDynamics.jl/src/nd_ODE_Static.jl:41 =#
+        #     begin
+        #         #= /home/micha/.julia/packages/Unrolled/26uDc/src/Unrolled.jl:55 =#
+        #         let j = 1
+        #             #= /home/micha/.julia/packages/Unrolled/26uDc/src/Unrolled.jl:55 =#
+        #             for i = unique_v_indices[j]
+        #                 #= /home/micha/git/NetworkDynamics.jl/src/nd_ODE_Static.jl:45 =#
+        #                 (unique_vertices[j]).f!(view(dx, gs.v_idx[i]), get_vertex(gd, i), get_dst_edges(gd, i), p_v_idx(p, i), t)
+        #             end
+        #         end
+        #         let j = 2
+        #             #= /home/micha/.julia/packages/Unrolled/26uDc/src/Unrolled.jl:55 =#
+        #             for i = unique_v_indices[j]
+        #                 #= /home/micha/git/NetworkDynamics.jl/src/nd_ODE_Static.jl:45 =#
+        #                 (unique_vertices[j]).f!(view(dx, gs.v_idx[i]), get_vertex(gd, i), get_dst_edges(gd, i), p_v_idx(p, i), t)
+        #             end
+        #         end
+        #     end
+        # end

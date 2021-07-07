@@ -75,6 +75,22 @@ function collect_ve_info(vertices!, edges!, graph)
     v_dims, e_dims, symbols_v, symbols_e, mmv_array, mme_array
 end
 
+
+function collect_unique_components(ver)
+    uver = Tuple(unique(ver))
+    ind_uver = Vector{Int64}[]
+    for v in uver
+        ind_v = Int64[]
+        for i in eachindex(ver)
+            if v == ver[i]
+                push!(ind_v, i)
+            end
+        end
+        push!(ind_uver, ind_v)
+    end
+    uver, ind_uver
+end
+
 """
     network_dynamics(vertices!, edges!, g; parallel = false)
 
@@ -104,11 +120,13 @@ function network_dynamics(vertices!::Union{Array{T, 1}, T},
 
     symbols = symbols_v
 
+    unique_vertices!, unique_v_indices = collect_unique_components(vertices!)
+
     graph_stucture = GraphStruct(graph, v_dims, e_dims, symbols_v, symbols_e)
 
     graph_data = GraphData(v_array, e_array, graph_stucture)
 
-    nd! = nd_ODE_Static(vertices!, edges!, graph, graph_stucture, graph_data, parallel)
+    nd! = nd_ODE_Static(vertices!, unique_vertices!, unique_v_indices, edges!, graph, graph_stucture, graph_data, parallel)
     mass_matrix = construct_mass_matrix(mmv_array, graph_stucture)
 
     ODEFunction(nd!; mass_matrix = mass_matrix, syms=symbols)

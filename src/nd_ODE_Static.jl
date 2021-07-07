@@ -4,6 +4,7 @@ using ..NetworkStructures
 using ..ComponentFunctions
 using ..Utilities
 
+using Unrolled
 
 export nd_ODE_Static
 export StaticEdgeFunction
@@ -36,15 +37,45 @@ end
 end
 
 
+"""
+    Unroll needs its own function and the loop to unroll needs to iterate
+    over one of its arguments (modulo `length`).
+"""
+@unroll function vertex_loop!(dx, p, t, gd, gs,
+                              unique_vertices, unique_v_indices, parallel)
+    @unroll for j in 1:length(unique_vertices)
+        # @Threads.threads and @generated clash
+        # To make them uninvolved with each other we need another function
+        inner_vertex_loop!(dx, p, t, gd, gs,
+                           unique_vertices[j], unique_v_indices[j], parallel)
+    end
+end
 
-@Base.kwdef struct nd_ODE_Static{G, GD, T1, T2}
-    vertices!::T1
+function inner_vertex_loop!(dx, p, t, gd, gs,
+                            vertex, indices, parallel)
+    # Having another loop is great, because we should be able to
+    # dispatch on the vertex type
+    @nd_threads parallel for i in indices
+        vertex.f!(view(dx,gs.v_idx[i]),
+                  get_vertex(gd, i),
+                  get_dst_edges(gd, i),
+                  p_v_idx(p, i),
+                  t)
+    end
+end
+
+@Base.kwdef struct nd_ODE_Static{G, GD, TV, T1, T2}
+    vertices!::TV
+    unique_vertices!::T1
+    unique_v_indices::Vector{Vector{Int}}
     edges!::T2
     graph::G #redundant?
     graph_structure::GraphStruct
     graph_data::GD
     parallel::Bool # enables multithreading for the core loop
 end
+
+
 
 
 function (d::nd_ODE_Static)(dx, x, p, t)
@@ -63,15 +94,8 @@ function (d::nd_ODE_Static)(dx, x, p, t)
 
     @assert size(dx) == size(x) "Sizes of dx and x do not match"
 
-    @nd_threads d.parallel for i in 1:gs.num_v
-        maybe_idx(d.vertices!,i).f!(
-            view(dx,gs.v_idx[i]),
-            get_vertex(gd, i),
-            get_dst_edges(gd, i),
-            p_v_idx(p, i),
-            t)
-    end
-
+    vertex_loop!(dx, p, t, gd, gs,
+                 d.unique_vertices!, d.unique_v_indices, d.parallel)
     nothing
 end
 
